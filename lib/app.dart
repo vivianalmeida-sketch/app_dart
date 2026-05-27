@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'screens/login_screen.dart';
+import 'screens/loading_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/quotation_screen.dart';
 import 'screens/transfer_screen.dart';
@@ -23,6 +24,7 @@ class NewPayApp extends StatelessWidget {
       initialRoute: '/login',
       routes: {
         '/login': (context) => const LoginScreen(),
+        '/loading': (context) => const LoadingScreen(),
         '/home': (context) => const HomeScreen(),
         '/quotation': (context) => const QuotationScreen(),
         '/transfer': (context) => const TransferScreen(),

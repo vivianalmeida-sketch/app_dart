@@ -33,9 +33,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
     if (user != null && mounted) {
       Navigator.pushReplacementNamed(
-        context,
-        '/home',
-        arguments: user,
+         context,
+         '/loading',
+          arguments: user,
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
