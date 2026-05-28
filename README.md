@@ -1,4 +1,4 @@
-# newpay
+# Newpay
 
 A new Flutter project.
 
