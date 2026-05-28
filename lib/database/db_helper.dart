@@ -15,14 +15,17 @@ class DbHelper {
     return _database!;
   }
 
+  Null get userId => null;
+
   Future<Database> _initDB(String fileName) async {
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, fileName);
 
     return await openDatabase(
       path,
-      version: 1,
+      version: 2,
       onCreate: _createDB,
+      onUpgrade: _upgradeDB,
     );
   }
 
@@ -31,7 +34,7 @@ class DbHelper {
       CREATE TABLE users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
-        email TEXT NOT NULL,
+        email TEXT NOT NULL UNIQUE,
         password TEXT NOT NULL,
         balance REAL NOT NULL
       )
@@ -49,11 +52,19 @@ class DbHelper {
     ''');
 
     await db.insert('users', {
-      'name': 'Nathan Viana',
+      'name': 'Vivian Cristina',
       'email': 'newpay@teste.com',
       'password': '123456',
       'balance': 2450.75,
     });
+  }
+
+  Future<void> _upgradeDB(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      try {
+        await db.execute('CREATE UNIQUE INDEX idx_users_email ON users(email)');
+      } catch (_) {}
+    }
   }
 
   Future<Map<String, dynamic>?> login(String email, String password) async {
@@ -72,13 +83,55 @@ class DbHelper {
     return null;
   }
 
-  Future<Map<String, dynamic>?> getUser() async {
+  Future<Map<String, dynamic>?> getUserByEmail(String email) async {
     final db = await database;
 
     final result = await db.query(
       'users',
-      limit: 1,
+      where: 'email = ?',
+      whereArgs: [email],
     );
+
+    if (result.isNotEmpty) {
+      return result.first;
+    }
+
+    return null;
+  }
+
+  Future<Map<String, dynamic>> registerUser({
+    required String name,
+    required String email,
+    required String password,
+  }) async {
+    final db = await database;
+
+    final existingUser = await getUserByEmail(email);
+
+    if (existingUser != null) {
+      throw Exception('Este e-mail já está cadastrado.');
+    }
+
+    final userId = await db.insert('users', {
+      'name': name,
+      'email': email,
+      'password': password,
+      'balance': 50.00,
+    });
+
+    final result = await db.query(
+      'users',
+      where: 'id = ?',
+      whereArgs: [userId],
+    );
+
+    return result.first;
+  }
+
+  Future<Map<String, dynamic>?> getUser() async {
+    final db = await database;
+
+    final result = await db.query('users', limit: 1);
 
     if (result.isNotEmpty) {
       return result.first;
@@ -107,20 +160,20 @@ class DbHelper {
   Future<List<Map<String, dynamic>>> getTransfers() async {
     final db = await database;
 
-    return await db.query(
-      'transfers',
-      orderBy: 'id DESC',
-    );
+    return await db.query('transfers', orderBy: 'id DESC');
   }
 
-  Future<void> updateBalance(double newBalance) async {
+  Future<void> updateBalance({
+    required int userId,
+    required double newBalance,
+  }) async {
     final db = await database;
 
     await db.update(
       'users',
       {'balance': newBalance},
       where: 'id = ?',
-      whereArgs: [1],
+      whereArgs: [userId],
     );
   }
 }

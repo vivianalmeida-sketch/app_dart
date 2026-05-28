@@ -14,10 +14,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Map<String, dynamic>? user;
   List<Map<String, dynamic>> transfers = [];
 
-  final moneyFormat = NumberFormat.currency(
-    locale: 'pt_BR',
-    symbol: 'R\$',
-  );
+  final moneyFormat = NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');
 
   @override
   void didChangeDependencies() {
@@ -33,11 +30,20 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> loadData() async {
-    final dbUser = await DbHelper.instance.getUser();
     final dbTransfers = await DbHelper.instance.getTransfers();
 
+    if (user == null) {
+      final dbUser = await DbHelper.instance.getUser();
+
+      setState(() {
+        user = dbUser;
+        transfers = dbTransfers;
+      });
+
+      return;
+    }
+
     setState(() {
-      user = dbUser;
       transfers = dbTransfers;
     });
   }
@@ -89,10 +95,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 children: [
                   const Text(
                     'Saldo disponível',
-                    style: TextStyle(
-                      color: AppColors.muted,
-                      fontSize: 14,
-                    ),
+                    style: TextStyle(color: AppColors.muted, fontSize: 14),
                   ),
                   const SizedBox(height: 10),
                   Text(
@@ -106,10 +109,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   const SizedBox(height: 18),
                   const Text(
                     'Conta digital ativa',
-                    style: TextStyle(
-                      color: AppColors.primary,
-                      fontSize: 14,
-                    ),
+                    style: TextStyle(color: AppColors.primary, fontSize: 14),
                   ),
                 ],
               ),
@@ -138,6 +138,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         context,
                         '/transfer',
                         arguments: {
+                          'userId': user?['id'],
                           'currentBalance': balance,
                           'userName': name,
                         },

@@ -21,11 +21,9 @@ class _TransferScreenState extends State<TransferScreen> {
 
   double currentBalance = 0;
   String userName = 'Cliente';
+  int userId = 1;
 
-  final moneyFormat = NumberFormat.currency(
-    locale: 'pt_BR',
-    symbol: 'R\$',
-  );
+  final moneyFormat = NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');
 
   @override
   void didChangeDependencies() {
@@ -34,6 +32,7 @@ class _TransferScreenState extends State<TransferScreen> {
     final args = ModalRoute.of(context)?.settings.arguments;
 
     if (args != null && args is Map<String, dynamic>) {
+      userId = args['userId'] ?? 1;
       currentBalance = args['currentBalance'] ?? 0;
       userName = args['userName'] ?? 'Cliente';
     }
@@ -47,7 +46,10 @@ class _TransferScreenState extends State<TransferScreen> {
 
     final amount = double.tryParse(amountText);
 
-    if (receiverName.isEmpty || receiverKey.isEmpty || amount == null || amount <= 0) {
+    if (receiverName.isEmpty ||
+        receiverKey.isEmpty ||
+        amount == null ||
+        amount <= 0) {
       showMessage('Preencha os dados corretamente.');
       return;
     }
@@ -65,10 +67,13 @@ class _TransferScreenState extends State<TransferScreen> {
       amount: amount,
       description: description.isEmpty ? 'Transferência NewPay' : description,
     );
+    await DbHelper.instance.updateBalance(
+      userId: userId,
+      newBalance: newBalance,
+    );
 
-    await DbHelper.instance.updateBalance(newBalance);
-
-    final receipt = '''
+    final receipt =
+        '''
 NEWPAY - COMPROVANTE DE TRANSFERÊNCIA
 
 Pagador: $userName
@@ -117,11 +122,9 @@ Transferência realizada com sucesso pelo app NewPay.
   }
 
   void showMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-      ),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:newpay/screens/lib/screens/register_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/loading_screen.dart';
 import 'screens/home_screen.dart';
@@ -24,6 +25,7 @@ class NewPayApp extends StatelessWidget {
       initialRoute: '/login',
       routes: {
         '/login': (context) => const LoginScreen(),
+        '/register': (context) => const RegisterScreen(),
         '/loading': (context) => const LoadingScreen(),
         '/home': (context) => const HomeScreen(),
         '/quotation': (context) => const QuotationScreen(),

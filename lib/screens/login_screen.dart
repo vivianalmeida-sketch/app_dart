@@ -33,15 +33,13 @@ class _LoginScreenState extends State<LoginScreen> {
 
     if (user != null && mounted) {
       Navigator.pushReplacementNamed(
-         context,
-         '/loading',
-          arguments: user,
+        context,
+        '/loading',
+        arguments: {'user': user, 'message': 'Acessando sua conta...'},
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('E-mail ou senha inválidos'),
-        ),
+        const SnackBar(content: Text('E-mail ou senha inválidos')),
       );
     }
   }
@@ -69,10 +67,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   const SizedBox(height: 8),
                   const Text(
                     'Seu banco digital simples, rápido e seguro.',
-                    style: TextStyle(
-                      color: AppColors.muted,
-                      fontSize: 16,
-                    ),
+                    style: TextStyle(color: AppColors.muted, fontSize: 16),
                   ),
                   const SizedBox(height: 40),
 
@@ -100,13 +95,28 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
 
                   const SizedBox(height: 24),
+                  const SizedBox(height: 18),
+
+                  Center(
+                    child: TextButton(
+                      onPressed: () {
+                        Navigator.pushNamed(context, '/register');
+                      },
+                      child: const Text(
+                        'Criar minha conta NewPay',
+                        style: TextStyle(
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 8),
 
                   const Text(
                     'Acesso de teste: newpay@teste.com / 123456',
-                    style: TextStyle(
-                      color: AppColors.muted,
-                      fontSize: 13,
-                    ),
+                    style: TextStyle(color: AppColors.muted, fontSize: 13),
                   ),
                 ],
               ),
