@@ -113,11 +113,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
 
                   const SizedBox(height: 8),
-
-                  const Text(
-                    'Acesso de teste: newpay@teste.com / 123456',
-                    style: TextStyle(color: AppColors.muted, fontSize: 13),
-                  ),
                 ],
               ),
             ),

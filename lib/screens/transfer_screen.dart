@@ -25,6 +25,8 @@ class _TransferScreenState extends State<TransferScreen> {
 
   final moneyFormat = NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');
 
+  VoidCallback? get scanQrCode => null;
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -104,6 +106,7 @@ Transferência realizada com sucesso pelo app NewPay.
           actions: [
             TextButton(
               onPressed: () {
+                // ignore: deprecated_member_use
                 Share.share(receipt);
               },
               child: const Text('Compartilhar'),
@@ -179,6 +182,23 @@ Transferência realizada com sucesso pelo app NewPay.
             label: 'Chave Pix',
             icon: Icons.vpn_key_outlined,
           ),
+          const SizedBox(height: 10),
+
+          OutlinedButton.icon(
+            onPressed: scanQrCode,
+            icon: const Icon(Icons.qr_code_scanner),
+            label: const Text('Ler QR Code Pix'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.primary,
+              side: const BorderSide(color: AppColors.primary),
+              minimumSize: const Size(double.infinity, 52),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(18),
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 14),
 
           const SizedBox(height: 14),
 

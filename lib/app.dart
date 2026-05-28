@@ -5,6 +5,7 @@ import 'screens/loading_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/quotation_screen.dart';
 import 'screens/transfer_screen.dart';
+import 'screens/qr_scanner_screen.dart';
 
 class NewPayApp extends StatelessWidget {
   const NewPayApp({super.key});
@@ -30,6 +31,7 @@ class NewPayApp extends StatelessWidget {
         '/home': (context) => const HomeScreen(),
         '/quotation': (context) => const QuotationScreen(),
         '/transfer': (context) => const TransferScreen(),
+        '/qr-scanner': (context) => const QrScannerScreen(),
       },
     );
   }
