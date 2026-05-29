@@ -30,19 +30,17 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> loadData() async {
-    final dbTransfers = await DbHelper.instance.getTransfers();
-
     if (user == null) {
       final dbUser = await DbHelper.instance.getUser();
-
+      final dbTransfers = await DbHelper.instance.getTransfers(dbUser?['id'] ?? 0);
       setState(() {
         user = dbUser;
         transfers = dbTransfers;
       });
-
       return;
     }
 
+    final dbTransfers = await DbHelper.instance.getTransfers(user?['id'] ?? 0);
     setState(() {
       transfers = dbTransfers;
     });
@@ -143,7 +141,6 @@ class _HomeScreenState extends State<HomeScreen> {
                           'userName': name,
                         },
                       );
-
                       loadData();
                     },
                   ),

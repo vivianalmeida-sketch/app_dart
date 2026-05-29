@@ -23,7 +23,7 @@ class DbHelper {
 
     return await openDatabase(
       path,
-      version: 2,
+      version: 3,
       onCreate: _createDB,
       onUpgrade: _upgradeDB,
     );
@@ -43,6 +43,7 @@ class DbHelper {
     await db.execute('''
       CREATE TABLE transfers (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
+        userId INTEGER NOT NULL,
         receiverName TEXT NOT NULL,
         receiverKey TEXT NOT NULL,
         amount REAL NOT NULL,
@@ -63,6 +64,11 @@ class DbHelper {
     if (oldVersion < 2) {
       try {
         await db.execute('CREATE UNIQUE INDEX idx_users_email ON users(email)');
+      } catch (_) {}
+    }
+    if (oldVersion < 3) {
+      try {
+        await db.execute('ALTER TABLE transfers ADD COLUMN userId INTEGER NOT NULL DEFAULT 0');
       } catch (_) {}
     }
   }
@@ -112,7 +118,7 @@ class DbHelper {
       throw Exception('Este e-mail já está cadastrado.');
     }
 
-    final userId = await db.insert('users', {
+    final newUserId = await db.insert('users', {
       'name': name,
       'email': email,
       'password': password,
@@ -122,7 +128,7 @@ class DbHelper {
     final result = await db.query(
       'users',
       where: 'id = ?',
-      whereArgs: [userId],
+      whereArgs: [newUserId],
     );
 
     return result.first;
@@ -141,6 +147,7 @@ class DbHelper {
   }
 
   Future<void> saveTransfer({
+    required int userId,
     required String receiverName,
     required String receiverKey,
     required double amount,
@@ -149,6 +156,7 @@ class DbHelper {
     final db = await database;
 
     await db.insert('transfers', {
+      'userId': userId,
       'receiverName': receiverName,
       'receiverKey': receiverKey,
       'amount': amount,
@@ -157,10 +165,15 @@ class DbHelper {
     });
   }
 
-  Future<List<Map<String, dynamic>>> getTransfers() async {
+  Future<List<Map<String, dynamic>>> getTransfers(int userId) async {
     final db = await database;
 
-    return await db.query('transfers', orderBy: 'id DESC');
+    return await db.query(
+      'transfers',
+      where: 'userId = ?',
+      whereArgs: [userId],
+      orderBy: 'id DESC',
+    );
   }
 
   Future<void> updateBalance({

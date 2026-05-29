@@ -74,6 +74,7 @@ class _TransferScreenState extends State<TransferScreen> {
     final newBalance = currentBalance - amount;
 
     await DbHelper.instance.saveTransfer(
+      userId: userId,
       receiverName: receiverName,
       receiverKey: receiverKey,
       amount: amount,
