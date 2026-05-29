@@ -24,17 +24,23 @@ class _TransferScreenState extends State<TransferScreen> {
   double currentBalance = 0;
   String userName = 'Cliente';
   int userId = 1;
+
   List<Map<String, dynamic>> contacts = [];
+
   bool transferDone = false;
   Map<String, dynamic>? receiptData;
 
-  final moneyFormat = NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');
+  bool loadedArgs = false;
 
-  VoidCallback? get scanQrCode => null;
+  final moneyFormat = NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+
+    if (loadedArgs) return;
+
+    loadedArgs = true;
 
     final args = ModalRoute.of(context)?.settings.arguments;
 
@@ -47,11 +53,37 @@ class _TransferScreenState extends State<TransferScreen> {
     _loadContacts();
   }
 
+  @override
+  void dispose() {
+    nameController.dispose();
+    keyController.dispose();
+    amountController.dispose();
+    descriptionController.dispose();
+    super.dispose();
+  }
+
   Future<void> _loadContacts() async {
     final users = await DbHelper.instance.getUsers();
+
+    if (!mounted) return;
+
     setState(() {
       contacts = users.where((u) => u['id'] != userId).toList();
     });
+  }
+
+  Future<void> scanQrCode() async {
+    final result = await Navigator.pushNamed(context, '/qr-scanner');
+
+    if (!mounted) return;
+
+    if (result != null && result is String) {
+      setState(() {
+        keyController.text = result;
+      });
+
+      showMessage('QR Code lido com sucesso.');
+    }
   }
 
   Future<void> makeTransfer() async {
@@ -59,9 +91,13 @@ class _TransferScreenState extends State<TransferScreen> {
     final receiverKey = keyController.text.trim();
     final amountText = amountController.text.replaceAll(',', '.').trim();
     final description = descriptionController.text.trim();
+
     final amount = double.tryParse(amountText);
 
-    if (receiverName.isEmpty || receiverKey.isEmpty || amount == null || amount <= 0) {
+    if (receiverName.isEmpty ||
+        receiverKey.isEmpty ||
+        amount == null ||
+        amount <= 0) {
       showMessage('Preencha os dados corretamente.');
       return;
     }
@@ -80,7 +116,13 @@ class _TransferScreenState extends State<TransferScreen> {
       amount: amount,
       description: description.isEmpty ? 'Transferência NewPay' : description,
     );
-    await DbHelper.instance.updateBalance(userId: userId, newBalance: newBalance);
+
+    await DbHelper.instance.updateBalance(
+      userId: userId,
+      newBalance: newBalance,
+    );
+
+    if (!mounted) return;
 
     setState(() {
       transferDone = true;
@@ -89,7 +131,9 @@ class _TransferScreenState extends State<TransferScreen> {
         'receiverName': receiverName,
         'receiverKey': receiverKey,
         'amount': amount,
-        'description': description.isEmpty ? 'Transferência NewPay' : description,
+        'description': description.isEmpty
+            ? 'Transferência NewPay'
+            : description,
         'date': DateFormat('dd/MM/yyyy HH:mm').format(DateTime.now()),
       };
     });
@@ -99,38 +143,48 @@ class _TransferScreenState extends State<TransferScreen> {
     if (receiptData == null) return;
 
     final doc = pw.Document();
+
     doc.addPage(
       pw.Page(
-        build: (pw.Context context) => pw.Column(
-          crossAxisAlignment: pw.CrossAxisAlignment.start,
-          children: [
-            pw.Text(
-              'NewPay - Comprovante de Transferência',
-              style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold),
+        pageFormat: PdfPageFormat.a4,
+        build: (pw.Context context) {
+          return pw.Padding(
+            padding: const pw.EdgeInsets.all(24),
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Text(
+                  'NewPay - Comprovante de Transferência',
+                  style: pw.TextStyle(
+                    fontSize: 20,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
+                ),
+                pw.SizedBox(height: 20),
+                pw.Divider(),
+                pw.SizedBox(height: 12),
+                pw.Text('Pagador: $userName'),
+                pw.SizedBox(height: 8),
+                pw.Text('Recebedor: ${receiptData!['receiverName']}'),
+                pw.SizedBox(height: 8),
+                pw.Text('Chave Pix: ${receiptData!['receiverKey']}'),
+                pw.SizedBox(height: 8),
+                pw.Text('Valor: ${moneyFormat.format(receiptData!['amount'])}'),
+                pw.SizedBox(height: 8),
+                pw.Text('Descrição: ${receiptData!['description']}'),
+                pw.SizedBox(height: 8),
+                pw.Text('Data: ${receiptData!['date']}'),
+                pw.SizedBox(height: 20),
+                pw.Divider(),
+                pw.SizedBox(height: 12),
+                pw.Text(
+                  'Transferência realizada com sucesso pelo app NewPay.',
+                  style: const pw.TextStyle(color: PdfColors.grey),
+                ),
+              ],
             ),
-            pw.SizedBox(height: 20),
-            pw.Divider(),
-            pw.SizedBox(height: 12),
-            pw.Text('Pagador: $userName'),
-            pw.SizedBox(height: 8),
-            pw.Text('Recebedor: ${receiptData!['receiverName']}'),
-            pw.SizedBox(height: 8),
-            pw.Text('Chave Pix: ${receiptData!['receiverKey']}'),
-            pw.SizedBox(height: 8),
-            pw.Text('Valor: ${moneyFormat.format(receiptData!['amount'])}'),
-            pw.SizedBox(height: 8),
-            pw.Text('Descrição: ${receiptData!['description']}'),
-            pw.SizedBox(height: 8),
-            pw.Text('Data: ${receiptData!['date']}'),
-            pw.SizedBox(height: 20),
-            pw.Divider(),
-            pw.SizedBox(height: 12),
-            pw.Text(
-              'Transferência realizada com sucesso pelo app NewPay.',
-              style: pw.TextStyle(color: PdfColors.grey),
-            ),
-          ],
-        ),
+          );
+        },
       ),
     );
 
@@ -141,108 +195,28 @@ class _TransferScreenState extends State<TransferScreen> {
   }
 
   void showMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  void selectContact(Map<String, dynamic> contact) {
+    setState(() {
+      nameController.text = contact['name'] ?? '';
+      keyController.text = contact['email'] ?? '';
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     if (transferDone && receiptData != null) {
-      return Scaffold(
-        backgroundColor: AppColors.background,
-        appBar: AppBar(
-          backgroundColor: AppColors.background,
-          title: const Text('Comprovante'),
-          automaticallyImplyLeading: false,
-        ),
-        body: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Column(
-                  children: [
-                    Container(
-                      width: 72,
-                      height: 72,
-                      decoration: BoxDecoration(
-                        color: AppColors.primary.withOpacity(0.15),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.check_circle,
-                        color: AppColors.primary,
-                        size: 44,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    const Text(
-                      'Transferência realizada!',
-                      style: TextStyle(
-                        color: AppColors.text,
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      moneyFormat.format(receiptData!['amount']),
-                      style: const TextStyle(
-                        color: AppColors.primary,
-                        fontSize: 32,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 32),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: AppColors.card,
-                  borderRadius: BorderRadius.circular(22),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _receiptRow('Pagador', userName),
-                    _receiptRow('Recebedor', receiptData!['receiverName']),
-                    _receiptRow('Chave Pix', receiptData!['receiverKey']),
-                    _receiptRow('Descrição', receiptData!['description']),
-                    _receiptRow('Data', receiptData!['date']),
-                    _receiptRow('Saldo restante', moneyFormat.format(currentBalance)),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 28),
-              NewPayButton(
-                text: 'Compartilhar comprovante PDF',
-                onPressed: sharePdf,
-              ),
-              const SizedBox(height: 14),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton(
-                  onPressed: () => Navigator.pop(context),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.primary,
-                    side: const BorderSide(color: AppColors.primary),
-                    minimumSize: const Size(double.infinity, 52),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(18),
-                    ),
-                  ),
-                  child: const Text('Fechar'),
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
+      return _buildReceiptScreen();
     }
 
+    return _buildTransferForm();
+  }
+
+  Widget _buildTransferForm() {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -252,54 +226,48 @@ class _TransferScreenState extends State<TransferScreen> {
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          Container(
-            padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(
-              color: AppColors.card,
-              borderRadius: BorderRadius.circular(22),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('Saldo disponível', style: TextStyle(color: AppColors.muted)),
-                const SizedBox(height: 6),
-                Text(
-                  moneyFormat.format(currentBalance),
-                  style: const TextStyle(
-                    color: AppColors.primary,
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-          ),
+          _balanceCard(),
 
           const SizedBox(height: 24),
 
           if (contacts.isNotEmpty) ...[
             const Text(
               'Contatos cadastrados',
-              style: TextStyle(color: AppColors.text, fontSize: 16, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                color: AppColors.text,
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
             ),
             const SizedBox(height: 12),
             ...contacts.map((contact) {
+              final contactName = contact['name'] ?? 'Usuário';
+              final contactEmail = contact['email'] ?? '';
+
               return ListTile(
                 contentPadding: EdgeInsets.zero,
                 leading: CircleAvatar(
                   backgroundColor: AppColors.primary,
                   child: Text(
-                    contact['name'][0],
-                    style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+                    contactName.toString().isNotEmpty
+                        ? contactName.toString()[0].toUpperCase()
+                        : '?',
+                    style: const TextStyle(
+                      color: Colors.black,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
-                title: Text(contact['name'], style: const TextStyle(color: AppColors.text)),
-                subtitle: Text(contact['email'], style: const TextStyle(color: AppColors.muted)),
+                title: Text(
+                  contactName,
+                  style: const TextStyle(color: AppColors.text),
+                ),
+                subtitle: Text(
+                  contactEmail,
+                  style: const TextStyle(color: AppColors.muted),
+                ),
                 onTap: () {
-                  setState(() {
-                    nameController.text = contact['name'];
-                    keyController.text = contact['email'];
-                  });
+                  selectContact(contact);
                 },
               );
             }),
@@ -311,41 +279,190 @@ class _TransferScreenState extends State<TransferScreen> {
             label: 'Nome do recebedor',
             icon: Icons.person_outline,
           ),
+
           const SizedBox(height: 14),
+
           NewPayInput(
             controller: keyController,
             label: 'Chave Pix',
             icon: Icons.vpn_key_outlined,
           ),
+
           const SizedBox(height: 10),
-          OutlinedButton.icon(
-            onPressed: scanQrCode,
-            icon: const Icon(Icons.qr_code_scanner),
-            label: const Text('Ler QR Code Pix'),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: AppColors.primary,
-              side: const BorderSide(color: AppColors.primary),
-              minimumSize: const Size(double.infinity, 52),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+
+          SizedBox(
+            width: double.infinity,
+            height: 52,
+            child: OutlinedButton.icon(
+              onPressed: scanQrCode,
+              icon: const Icon(Icons.qr_code_scanner, size: 20),
+              label: const Text(
+                'Ler QR Code Pix',
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+              ),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.primary,
+                side: const BorderSide(color: AppColors.primary, width: 1.4),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(18),
+                ),
+              ),
             ),
           ),
+
           const SizedBox(height: 14),
+
           NewPayInput(
             controller: amountController,
             label: 'Valor',
             icon: Icons.payments_outlined,
             keyboardType: TextInputType.number,
           ),
+
           const SizedBox(height: 14),
+
           NewPayInput(
             controller: descriptionController,
             label: 'Descrição',
             icon: Icons.description_outlined,
           ),
+
           const SizedBox(height: 28),
+
           NewPayButton(
             text: 'Confirmar transferência',
             onPressed: makeTransfer,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildReceiptScreen() {
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        backgroundColor: AppColors.background,
+        title: const Text('Comprovante'),
+        automaticallyImplyLeading: false,
+      ),
+      body: ListView(
+        padding: const EdgeInsets.all(24),
+        children: [
+          Center(
+            child: Column(
+              children: [
+                Container(
+                  width: 72,
+                  height: 72,
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withOpacity(0.15),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.check_circle,
+                    color: AppColors.primary,
+                    size: 44,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Transferência realizada!',
+                  style: TextStyle(
+                    color: AppColors.text,
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  moneyFormat.format(receiptData!['amount']),
+                  style: const TextStyle(
+                    color: AppColors.primary,
+                    fontSize: 32,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 32),
+
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: AppColors.card,
+              borderRadius: BorderRadius.circular(22),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _receiptRow('Pagador', userName),
+                _receiptRow('Recebedor', receiptData!['receiverName']),
+                _receiptRow('Chave Pix', receiptData!['receiverKey']),
+                _receiptRow('Descrição', receiptData!['description']),
+                _receiptRow('Data', receiptData!['date']),
+                _receiptRow(
+                  'Saldo restante',
+                  moneyFormat.format(currentBalance),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 28),
+
+          NewPayButton(
+            text: 'Compartilhar comprovante PDF',
+            onPressed: sharePdf,
+          ),
+
+          const SizedBox(height: 14),
+
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton(
+              onPressed: () => Navigator.pop(context),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.primary,
+                side: const BorderSide(color: AppColors.primary),
+                minimumSize: const Size(double.infinity, 52),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(18),
+                ),
+              ),
+              child: const Text('Fechar'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _balanceCard() {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(22),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Saldo disponível',
+            style: TextStyle(color: AppColors.muted),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            moneyFormat.format(currentBalance),
+            style: const TextStyle(
+              color: AppColors.primary,
+              fontSize: 28,
+              fontWeight: FontWeight.bold,
+            ),
           ),
         ],
       ),
@@ -360,12 +477,18 @@ class _TransferScreenState extends State<TransferScreen> {
         children: [
           SizedBox(
             width: 110,
-            child: Text(label, style: const TextStyle(color: AppColors.muted, fontSize: 13)),
+            child: Text(
+              label,
+              style: const TextStyle(color: AppColors.muted, fontSize: 13),
+            ),
           ),
           Expanded(
             child: Text(
               value,
-              style: const TextStyle(color: AppColors.text, fontWeight: FontWeight.w600),
+              style: const TextStyle(
+                color: AppColors.text,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ],
