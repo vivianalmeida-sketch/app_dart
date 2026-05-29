@@ -176,4 +176,9 @@ class DbHelper {
       whereArgs: [userId],
     );
   }
+
+  Future<List<Map<String, dynamic>>> getUsers() async {
+    final db = await database;
+    return await db.query('users', orderBy: 'name ASC');
+  }
 }
