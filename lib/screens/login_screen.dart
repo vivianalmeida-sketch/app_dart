@@ -35,7 +35,7 @@ class _LoginScreenState extends State<LoginScreen> {
       Navigator.pushReplacementNamed(
         context,
         '/loading',
-        arguments: {'user': user, 'message': 'Acessando sua conta...'},
+        arguments: user,
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
