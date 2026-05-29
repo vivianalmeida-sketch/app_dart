@@ -15,8 +15,6 @@ class DbHelper {
     return _database!;
   }
 
-  Null get userId => null;
-
   Future<Database> _initDB(String fileName) async {
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, fileName);
@@ -66,9 +64,12 @@ class DbHelper {
         await db.execute('CREATE UNIQUE INDEX idx_users_email ON users(email)');
       } catch (_) {}
     }
+
     if (oldVersion < 3) {
       try {
-        await db.execute('ALTER TABLE transfers ADD COLUMN userId INTEGER NOT NULL DEFAULT 0');
+        await db.execute(
+          'ALTER TABLE transfers ADD COLUMN userId INTEGER NOT NULL DEFAULT 0',
+        );
       } catch (_) {}
     }
   }
@@ -96,6 +97,23 @@ class DbHelper {
       'users',
       where: 'email = ?',
       whereArgs: [email],
+    );
+
+    if (result.isNotEmpty) {
+      return result.first;
+    }
+
+    return null;
+  }
+
+  Future<Map<String, dynamic>?> getUserById(int userId) async {
+    final db = await database;
+
+    final result = await db.query(
+      'users',
+      where: 'id = ?',
+      whereArgs: [userId],
+      limit: 1,
     );
 
     if (result.isNotEmpty) {
@@ -192,6 +210,7 @@ class DbHelper {
 
   Future<List<Map<String, dynamic>>> getUsers() async {
     final db = await database;
+
     return await db.query('users', orderBy: 'name ASC');
   }
 }

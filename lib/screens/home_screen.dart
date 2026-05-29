@@ -14,11 +14,17 @@ class _HomeScreenState extends State<HomeScreen> {
   Map<String, dynamic>? user;
   List<Map<String, dynamic>> transfers = [];
 
+  bool loadedArgs = false;
+
   final moneyFormat = NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+
+    if (loadedArgs) return;
+
+    loadedArgs = true;
 
     final args = ModalRoute.of(context)?.settings.arguments;
 
@@ -29,19 +35,42 @@ class _HomeScreenState extends State<HomeScreen> {
     loadData();
   }
 
+  Future<Map<String, dynamic>?> getUpdatedUser() async {
+    if (user != null && user?['id'] != null) {
+      final users = await DbHelper.instance.getUsers();
+
+      for (final item in users) {
+        if (item['id'] == user?['id']) {
+          return item;
+        }
+      }
+    }
+
+    return await DbHelper.instance.getUser();
+  }
+
   Future<void> loadData() async {
-    if (user == null) {
-      final dbUser = await DbHelper.instance.getUser();
-      final dbTransfers = await DbHelper.instance.getTransfers(dbUser?['id'] ?? 0);
+    final updatedUser = await getUpdatedUser();
+
+    if (updatedUser == null) {
+      if (!mounted) return;
+
       setState(() {
-        user = dbUser;
-        transfers = dbTransfers;
+        user = null;
+        transfers = [];
       });
+
       return;
     }
 
-    final dbTransfers = await DbHelper.instance.getTransfers(user?['id'] ?? 0);
+    final dbTransfers = await DbHelper.instance.getTransfers(
+      updatedUser['id'] ?? 0,
+    );
+
+    if (!mounted) return;
+
     setState(() {
+      user = updatedUser;
       transfers = dbTransfers;
     });
   }
@@ -60,7 +89,11 @@ class _HomeScreenState extends State<HomeScreen> {
         actions: [
           IconButton(
             onPressed: () {
-              Navigator.pushReplacementNamed(context, '/login');
+              Navigator.pushNamedAndRemoveUntil(
+                context,
+                '/login',
+                (route) => false,
+              );
             },
             icon: const Icon(Icons.logout),
           ),
@@ -137,11 +170,12 @@ class _HomeScreenState extends State<HomeScreen> {
                         '/transfer',
                         arguments: {
                           'userId': user?['id'],
-                          'currentBalance': balance,
-                          'userName': name,
+                          'currentBalance': user?['balance'] ?? 0.0,
+                          'userName': user?['name'] ?? 'Cliente',
                         },
                       );
-                      loadData();
+
+                      await loadData();
                     },
                   ),
                 ),
@@ -187,7 +221,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              transfer['receiverName'],
+                              transfer['receiverName'] ?? 'Recebedor',
                               style: const TextStyle(
                                 color: AppColors.text,
                                 fontWeight: FontWeight.bold,
@@ -204,7 +238,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ),
                       Text(
-                        '- ${moneyFormat.format(transfer['amount'])}',
+                        '- ${moneyFormat.format(transfer['amount'] ?? 0)}',
                         style: const TextStyle(
                           color: AppColors.danger,
                           fontWeight: FontWeight.bold,
